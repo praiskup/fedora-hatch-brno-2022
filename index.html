@@ -1,0 +1,444 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+        <title>Fix, Build and Distribute Fedora Packages</title>
+
+        <link rel="stylesheet" href="dist/reset.css">
+        <link rel="stylesheet" href="dist/reveal.css">
+        <link rel="stylesheet" href="dist/theme/black.css">
+
+        <!-- Theme used for syntax highlighted code -->
+        <link rel="stylesheet" href="plugin/highlight/monokai.css">
+        <style>
+            .inline_code {
+                color: lightblue;
+                font-family: monospace;
+                font-size: 80%;
+            }
+            .nobullet {
+                list-style: none;
+            }
+            .red {
+                color: red;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="reveal">
+            <div class="slides">
+
+
+<section>
+    <h3>Fix, build and distribute<br />Fedora Package</h3>
+    <p>Pavel Raiskup &lt;praiskup@redhat.com&gt;<br />Copr team</p>
+    <pre>$ git clone https://github.com/praiskup/fedora-hatch-brno-2022
+$ firefox fedora-hatch-brno-2022/index.html</pre>
+</section>
+
+
+<!--
+<section>
+    <h3>Why packaging?</h3>
+    <ul>
+        <li>sudo make install</li>
+        <li>Auditing / Security</li>
+        <li style="list-style-type: none;"><pre>rpm -qa, rpm -qf /bin/tar</pre></li>
+        <li>Automatic installation</li>
+        <li>Trusted SW provider</li>
+    </ul>
+</section>
+-->
+
+
+<section>
+    <h3>RPM package</h3>
+    <ul>
+      <li>a distro "SW building block"</li>
+      <li>"source" => spec + sources + patches</li>
+      <li>needs maintenance, contributors!</li>
+    </ul>
+</section>
+
+
+<section data-auto-animate>
+    <h3 data-id=header>Typical contributor's workflow</h3>
+    <ul>
+        <li data-id=problem>problem → culprit (get package source)</li>
+        <li data-id=upstream>upstream: search → report → fix</li>
+        <li>downstream, patch → local build, Mock</li>
+        <div data-id=build>
+        <li>prod build: Koji - <span style="color: orange;">permissions</span></li>
+        <li>share: update via Bodhi - <span style="color: orange;">permissions</span></li>
+        </div>
+        <li>dnf update</li>
+    </ul>
+</section>
+
+
+<section data-auto-animate>
+    <h3 data-id=header>Workshop workflow</h3>
+    <ul>
+        <li data-id=problem>problem → culprit (get package source)</li>
+        <li data-id=upstream>upstream: report exists, fix optional</li>
+        <li>downstream, patch → local build, Mock</li>
+        <div data-id=build>
+            <li>prod build+share: <a
+                                           href=https://copr.fedorainfracloud.org/>Fedora
+                                           Copr</a> - <span style="color: green;">anyone</span></li>
+        <li>dnf update</li>
+    </ul>
+</section>
+
+
+<section>
+    <h3>prepare</h3>
+    <ul>
+        <li>containers!<br/>drop <span style="color: lightblue;">'tsflags=nodocs'</span> from /etc/dnf/dnf.conf
+        </li>
+    </ul>
+            <pre class="bash"><code>
+    $ sudo dnf install -y /usr/bin/copr   # to fix
+    $ sudo dnf install -y fedora-packager # tooling
+
+    # Environment, usually ready...
+    $ sudo dnf install -y man man-pages dnf-plugins-core
+    </code>
+            </pre>
+</section>
+
+<section>
+    <h3>Problem</h3>
+
+    (<a href="https://pagure.io/copr/copr/issue/1955">1</a>
+    and <a
+    href="https://pagure.io/copr/copr/issue/2173">2</a>)
+
+            <pre class="text"><code>
+    $ man copr # says:
+    --timeout
+           Override timeout for this build.
+    </code>
+            </pre>
+
+    How am I supposed to use this option???
+</section>
+
+<section data-auto-animate>
+    <h3>Culprit</h3>
+    <ul>
+        <li>where is the man page?</li>
+        <li class=nobullet><span class=inline_code>
+               $ rpm [-ql|-qd] SOME_KNOWN_PACKAGE | grep man<br/>
+               <span style="color: red;">/usr/share/man</span>/man1/gtar.1.gz <br/>
+               $ find <span style="color: red;">/usr/share/man</span> | grep copr
+            </span></li>
+        <li class=nobullet><span class=inline_code>
+            $ which copr (command -v copr)
+            </span>
+        </li>
+        <li>guilty package?<br />
+            <span class=inline_code>$ rpm -qf <span
+                  class=red>/usr/share/man</span>/man1/gtar.1.gz<br />
+              tar-1.34-3.fc36.x86_64
+            </span>
+        </li>
+    </ul>
+</section>
+
+<section data-auto-animate>
+    <h3>Culprit</h3>
+    <ul>
+        <li>guilty source? Nnote subpackages, e.g.<br />
+            <span class=inline_code>
+              $ rpm -qf /usr/share/doc/python3-copr/README.rst <br />
+              python3-copr-1.121-1.fc36.noarch <br>
+              $ rpm -qi python3-copr | grep Source <br>
+              Source RPM  : python-copr-1.121-1.fc36.src.rpm
+            </span>
+        </li>
+        <li>Q: What is the guilty source package?</li>
+    </ul>
+</section>
+
+
+<section>
+    <h3>source</h3>
+    <p><a href="https://src.fedoraproject.org/rpms/copr-cli">https://src.fedoraproject.org/rpms/copr-cli</a></p>
+            <pre class="text"><code>
+    $ fedpkg clone -a copr-cli
+    $ cd copr-cli
+    $ fedpkg switch-branch
+    ...
+    origin/f35
+    origin/f36
+    ...
+    # ?? what branch ??
+    </code>
+            </pre>
+
+</section>
+
+
+<section>
+    <h3> Fedora version </h3>
+    <pre class="text"><code>
+    $ cat /etc/os-release  | grep ^VERSION=
+    VERSION="36 (Workstation Edition)"
+
+    $ rpm --eval %dist
+    .fc36
+
+    $ rpm -q tar
+    $ uname --kernel-release
+
+    $ fedpkg switch-branch f36 # (git checkout f36)
+    </code></pre>
+</section>
+
+
+<section>
+    <h3>no source tarball!</h3>
+    <pre class="text"><code>
+    $ ls
+    copr-cli.spec  sources
+
+    $ cat sources
+    ...
+
+    $ fepdkg sources  # or copr-distgit-client
+    ... downloading from Fedora DistGit ...
+    </code></pre>
+</section>
+
+
+<section>
+    <h3>extract source tarball</h3>
+    <pre class="text"><code>
+    $ fedpkg prep
+    ... extracts tarball, applies patches, etc. ...
+    $ # or rpmbuild -bp --define "_sourcedir $PWD" *.spec)
+
+    $ ls copr-cli*/  # YAY, sources!
+    </code></pre>
+</section>
+
+
+<section>
+    <h3>first local build</h3>
+    <pre class="text"><code>
+    $ fedpkg local
+    error: Failed build dependencies: ...
+
+    $ sudo dnf builddep *.spec
+
+    $ fedpkg local  # retry
+    Wrote: /copr-cli/noarch/copr-cli-1.102-1.fc36.noarch.rpm
+    </code></pre>
+</section>
+
+<section>
+    <h3>install && test</h3>
+    <pre class="text"><code>
+    $ sudo dnf install /copr-cli/noarch/copr-cli-1.102-1.fc36.noarch.rpm
+    Nothing to do.
+    Complete!
+
+    $ sudo rpm -ivh /copr-cli/noarch/copr-cli-1.102-1.fc36.noarch.rpm
+    package copr-cli-1.102-1.fc36.noarch is already installed
+
+    $ sudo dnf reinstall ...
+    </code></pre>
+</section>
+
+
+<section>
+    <h3>Problem</h3>
+
+            <pre class="text"><code>
+    $ man copr # says:
+    --timeout
+           Override timeout for this build.
+    </code>
+            </pre>
+
+        Source code to fix?
+</section>
+
+
+<section data-auto-animate>
+    <h3 data-id=head>modify #1</h3>
+    <pre class="text"><code>
+    $ find copr-cli*/ -name '*man*'
+    copr-cli-1.102/man
+
+    $ ls copr-cli-1.102/man
+    copr.1  copr-cli.1.asciidoc
+
+    $ grep -ri "Override timeout for this build." . # alt
+    ./copr-cli-1.102/man/copr-cli.1:Override timeout for this build\&.
+    ./copr-cli-1.102/man/copr-cli.1.asciidoc:Override timeout for this build.
+
+    $ # backup!
+    $ cp copr-cli-1.102/man/copr-cli.1.asciidoc{,-backup}
+    </code></pre>
+</section>
+
+
+<section data-auto-animate>
+    <h3 data-id=head>modify #2</h3>
+    The --help has a better wording, use it...
+    <pre class="text"><code>
+
+    $ copr build --help
+    ...
+      --timeout TIMEOUT
+            Specify build timeout (seconds), if the build
+            takes longer than that, it is terminated and
+            fails. The default is usually set to 5 hours on
+            Copr Frontend.
+
+    $ vim copr-cli-1.102/man/copr-cli.1.asciidoc
+    </code></pre>
+</section>
+
+
+<section data-auto-animate>
+    <h3 data-id=head>modify #3</h3>
+    <pre class="text"><code>
+    $ diff -u copr-cli-1.102/man/copr-cli.1.asciidoc-backup \
+              copr-cli-1.102/man/copr-cli.1.asciidoc
+    ...
+
+    $ diff -u copr-cli-1.102/man/copr-cli.1.asciidoc-backup \
+              copr-cli-1.102/man/copr-cli.1.asciidoc \
+    > man-page.patch
+    </code></pre>
+</section>
+
+<section data-auto-animate>
+    <h3 data-id=head>modify #3</h3>
+    <ul>
+        <li>edit spec <span class=inline_code>$ vim
+                copr-cli.spec</span></li>
+        <li>change Release: bump, <span class=inline_code>1
+                =&gt; 2</span></li>
+        <li>specify patchfile: <br>
+            Near Source0: <span class=inline_code>'Patch0:
+                man-page.patch'</span></li>
+        <li>apply patch file, <span
+                class=inline_code>%prep</span> section:
+            <span class=inline_code>'%patch0 -p1' </span></li>
+    </ul>
+</section>
+
+
+<section>
+    <h3 data-id=head>build again</h3>
+    <pre class="text"><code>
+    $ fedpkg local
+    ...
+    Wrote: /tmp/copr-cli/noarch/copr-cli-1.102-2.fc36.noarch.rpm
+
+    $ sudo dnf install -y \
+    /tmp/copr-cli/noarch/copr-cli-1.102-2.fc36.noarch.rpm
+    ...
+    Upgraded:
+      copr-cli-1.102-2.fc36.noarch
+    </code></pre>
+</section>
+
+
+<section>
+    <h3>How to build for Fexora XY</h3>
+    <pre class="text"><code>
+    $ sudo dnf install -y mock
+
+    $ # User needs to be in a mock group!
+    $ sudo usermod -a -G mock praiskup
+
+    $ # Run the cross-distro build.
+    $ mock -r fedora-35-x86_64 --rebuild /copr-cli/copr-cli-1.102-2.fc36.src.rpm
+    ...
+    </code></pre>
+    <p>Note!  Dependencies are automatically installed.</p>
+</section>
+
+
+<section data-auto-animate>
+    <h3 data-id=head>Fedora Copr config</h3>
+    <ul>
+        <li>Visit web UI: <a
+                href=https://copr.fedorainfracloud.org/api/>
+                https://copr.fedorainfracloud.org/api/
+            </a> and hit "sign up"</li>
+        <li> Goes to: https://accounts.fedoraproject.org/ -> Register</li>
+        <li>Store contents of the token: ~/.config/copr</li>
+    </ul>
+</section>
+
+<section data-auto-animate>
+    <h3 data-id=head>Fedora Copr - prepare srpm</h3>
+    <pre class="text"><code>
+    $ vim copr-cli.spec  # bump 2 &gt; 3
+    $ fedpkg srpm
+    Wrote: /tmp/copr-cli/copr-cli-1.102-3.fc36.src.rpm
+    </code></pre>
+</section>
+
+<section data-auto-animate>
+    <h3 data-id=head>Fedora Copr - run the build</h3>
+    <pre class="text"><code>
+    $ copr create my-first-package \
+        --chroot fedora-36-x86_64 \
+        --chroot fedora-35-x86_64
+    New project was successfully created:
+    https://copr.fedorainfracloud.org/coprs/praiskup/my-first-package/
+
+    $ copr build my-first-package \
+        /copr-cli/copr-cli-1.102-2.fc36.src.rpm
+    Build was added to my-first-package:
+      https://copr.fedorainfracloud.org/coprs/build/4720270
+      ...
+      18:46:14 Build 4720270: succeeded
+    </code></pre>
+</section>
+
+<section>
+    <h3>Fedora Copr - install</h3>
+    <pre class="text"><code>
+    $ sudo dnf -y copr enable my-nick/my-first-package
+    $ sudo dnf -y update copr-cli  # voilà
+    </code></pre>
+</section>
+
+<section>
+    <h3>Bonus</h3>
+    <a
+            href=https://src.fedoraproject.org/lookaside/rpm-specs-latest.tar.xz>
+    https://src.fedoraproject.org/lookaside/rpm-specs-latest.tar.xz
+    </a>
+</section>
+
+            </div>
+        </div>
+
+        <script src="dist/reveal.js"></script>
+        <script src="plugin/notes/notes.js"></script>
+        <script src="plugin/markdown/markdown.js"></script>
+        <script src="plugin/highlight/highlight.js"></script>
+        <script>
+            // More info about initialization & config:
+            // - https://revealjs.com/initialization/
+            // - https://revealjs.com/config/
+            Reveal.initialize({
+                hash: true,
+
+                // Learn about plugins: https://revealjs.com/plugins/
+                plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ]
+            });
+        </script>
+    </body>
+</html>
