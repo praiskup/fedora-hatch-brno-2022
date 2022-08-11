@@ -32,12 +32,18 @@
 
 
 <section>
-    <h3>Fix, build and distribute<br />Fedora Package</h3>
-    <p>Pavel Raiskup &lt;praiskup@redhat.com&gt;<br />Copr team</p>
-    <pre>Slides:
-https://praiskup.fedorapeople.org/talks/fedora-hatch-brno-2022/
+    <h3>Fix, build and distribute<br />Fedora Packages</h3>
+    <p>Pavel Raiskup &lt;praiskup@redhat.com&gt;<br />Copr Team</p>
 
-$ git clone https://github.com/praiskup/fedora-hatch-brno-2022
+<small>
+Slides:
+<a href=https://praiskup.fedorapeople.org/talks/fedora-hatch-brno-2022/>
+https://praiskup.fedorapeople.org/talks/fedora-hatch-brno-2022/</a>
+<br>
+<a href=https://fedoramagazine.org/how-to-contribute-to-fedora/>
+Fedora - how to contribute (blog)</a>
+</small>
+<pre>$ git clone https://github.com/praiskup/fedora-hatch-brno-2022
 $ firefox fedora-hatch-brno-2022/index.html</pre>
 </section>
 
@@ -61,6 +67,7 @@ $ firefox fedora-hatch-brno-2022/index.html</pre>
     <ul>
       <li>a distro "SW building block"</li>
       <li>"source" => spec + sources + patches</li>
+      <li>upstream / downstream</li>
       <li>needs maintenance, contributors!</li>
     </ul>
 </section>
@@ -322,7 +329,7 @@ $ firefox fedora-hatch-brno-2022/index.html</pre>
 </section>
 
 <section data-auto-animate>
-    <h3 data-id=head>modify #3</h3>
+    <h3 data-id=head>modify #4</h3>
     <ul>
         <li>edit spec <span class=inline_code>$ vim
                 copr-cli.spec</span></li>
@@ -423,6 +430,19 @@ $ firefox fedora-hatch-brno-2022/index.html</pre>
             href=https://src.fedoraproject.org/lookaside/rpm-specs-latest.tar.xz>
     https://src.fedoraproject.org/lookaside/rpm-specs-latest.tar.xz
     </a>
+    <p>Find us on #fedora-buildsys channel</p>
+</section>
+
+
+<section>
+    <h3>How easy?</h3>
+    <pre class="text"><code>
+    $ fedpkg clone -a PKGNAME && cd PKGNAME
+    $ fedpkg switch-branch fVERSION
+    $ fedpkg prep # and fix ..
+    $ fedpkg srpm
+    $ copr build PROJECT SRC.RPM
+    </code></pre>
 </section>
 
             </div>
