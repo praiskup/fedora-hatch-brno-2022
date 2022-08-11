@@ -1,0 +1,4 @@
+#! /bin/sh -x
+
+cd "$(dirname "$(readlink -f "$0")")"
+rsync --exclude=.git -rav ./ fedorapeople.org:/home/fedora/praiskup/public_html/talks/fedora-hatch-brno-2022
